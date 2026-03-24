@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>PID Diagnostics and Treatments</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,1,0" rel="stylesheet">
+  <style>
+
+  :root {
+   --rwce-blue: #2563eb;
+   --rwce-indigo: #3730a3;
+   --rwce-slate: #0f172a;
+   --rwce-soft: #eff6ff;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+   font-family: 'Inter', sans-serif;
+   background:
+    radial-gradient(circle at top left, rgba(59,130,246,0.10), transparent 28%),
+    radial-gradient(circle at top right, rgba(99,102,241,0.12), transparent 32%),
+    linear-gradient(180deg, #f8fbff 0%, #f8fafc 42%, #f1f5f9 100%);
+  }
+  .custom-scroll::-webkit-scrollbar { width: 7px; }
+  .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+  .custom-scroll::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 999px; }
+  .fade-in { animation: fadeIn 0.35s ease-out forwards; }
+  .slide-up { animation: slideUp 0.42s ease-out forwards; }
+  .scale-in { animation: scaleIn 0.24s ease-out forwards; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes scaleIn { from { opacity: 0; transform: scale(.98); } to { opacity: 1; transform: scale(1); } }
+  .glass-cmv {
+   background: rgba(255,255,255,0.82);
+   backdrop-filter: blur(16px);
+   border-bottom: 1px solid rgba(226, 232, 240, 0.95);
+   box-shadow: 0 10px 35px rgba(15, 23, 42, 0.05);
+  }
+  .sidebar-shell {
+   background: rgba(255,255,255,0.96);
+   backdrop-filter: blur(18px);
+  }
+  .fade-swap { transition: opacity 280ms ease, transform 280ms ease; will-change: opacity, transform; }
+  .swap-hidden { opacity: 0; transform: translateY(6px); pointer-events: none; }
+  .swap-visible { opacity: 1; transform: translateY(0); }
+  .buffering-overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(2,6,23,0.35); backdrop-filter: blur(2px); }
+  .spinner { width:44px; height:44px; border-radius:9999px; border:4px solid rgba(255,255,255,0.25); border-top-color: rgba(255,255,255,0.95); animation: spin 0.9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .group\/dl:hover .tooltip-dl { opacity: 1; transform: translateY(0); }
+  .hero-panel {
+   background:
+    radial-gradient(circle at 15% 10%, rgba(125,211,252,0.22), transparent 30%),
+    radial-gradient(circle at 85% 20%, rgba(129,140,248,0.25), transparent 36%),
+    linear-gradient(135deg, #0f172a 0%, #1d4ed8 48%, #312e81 100%);
+   box-shadow: 0 24px 60px rgba(30, 64, 175, 0.22);
+  }
+  .section-card {
+   background: rgba(255,255,255,0.88);
+   backdrop-filter: blur(12px);
+   border: 1px solid rgba(226, 232, 240, 0.9);
+   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
+  }
+  .metric-pill {
+   display: inline-flex;
+   align-items: center;
+   gap: .4rem;
+   padding: .45rem .7rem;
+   border-radius: 999px;
+   background: rgba(255,255,255,0.14);
+   border: 1px solid rgba(255,255,255,0.18);
+   color: rgba(255,255,255,0.92);
+   font-size: .78rem;
+   font-weight: 700;
+   letter-spacing: .01em;
+  }
+  .blue-glow {
+   box-shadow: 0 0 0 1px rgba(59,130,246,0.14), 0 14px 35px rgba(37,99,235,0.10);
+  }
+  .nav-progress {
+   background: linear-gradient(90deg, #2563eb 0%, #4f46e5 100%);
+  }
+  .choice-card { transition: all .18s ease; }
+  .choice-card:hover { transform: translateY(-1px); }
+  .soft-divider {
+   height: 1px;
+   background: linear-gradient(90deg, transparent, rgba(148,163,184,.5), transparent);
+  }
+  .case-fallback {
+   background:
+    radial-gradient(circle at 20% 20%, rgba(125,211,252,0.20), transparent 28%),
+    radial-gradient(circle at 75% 20%, rgba(196,181,253,0.20), transparent 30%),
+    linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #111827 100%);
+  }
+ 
+
+.sim-video-screen{
+    min-height: 360px;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(59,130,246,.24), transparent 22%),
+      radial-gradient(circle at 80% 10%, rgba(147,197,253,.20), transparent 18%),
+      linear-gradient(135deg, #0f172a 0%, #172554 45%, #1d4ed8 100%);
+    position: relative;
+    overflow: hidden;
+}
+.sim-video-grid{
+    position:absolute;
+    inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+    background-size: 36px 36px;
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,.9), rgba(0,0,0,.15));
+    pointer-events:none;
+}
+.sim-pulse{
+    animation: simPulse 2.2s ease-in-out infinite;
+}
+@keyframes simPulse{
+    0%,100%{transform:scale(1); box-shadow:0 0 0 0 rgba(96,165,250,.25);}
+    50%{transform:scale(1.03); box-shadow:0 0 0 14px rgba(96,165,250,0);}
+}
+.sim-progress-bar{
+    transition: width .9s linear;
+}
+.sim-fade{
+    animation: simFade .45s ease-out forwards;
+}
+@keyframes simFade{
+    from{opacity:0; transform:translateY(8px);}
+    to{opacity:1; transform:translateY(0);}
+}
+
+</style>
+</head>
+<body class="text-slate-900 h-screen flex overflow-hidden">
+<aside class="sidebar-shell border-r border-slate-200/80 flex-shrink-0 transition-all duration-300 w-72 flex flex-col z-20 absolute md:relative h-full transform md:transform-none -translate-x-full md:translate-x-0" id="sidebar">
+  <div class="px-5 py-5 border-b border-slate-100 flex justify-between items-center min-h-[88px]">
+    <div>
+      <div class="text-[11px] uppercase tracking-[0.24em] text-blue-200 font-bold"></div>
+      <div class="mt-2 text-sm text-slate-200"></div>
+      
+    </div>
+    <button class="md:hidden text-slate-400 hover:text-slate-600" onclick="toggleSidebar()">
+      <span class="material-symbols-outlined">close</span>
+    </button>
+  </div>
+  <div class="px-4 pt-4">
+    <div class="rounded-2xl bg-slate-900 text-white p-4 blue-glow">
+      <div class="flex justify-between text-[11px] text-slate-300 mb-1 font-semibold">
+        <span>Progress</span>
+        <span id="sidebar-progress-label">1 / 6</span>
+      </div>
+      <div class="h-2.5 w-full rounded-full bg-slate-200 overflow-hidden">
+        <div id="sidebar-progress-bar" class="h-full nav-progress rounded-full transition-all duration-500" style="width:0%"></div>
+      </div>
+    </div>
+  </div>
+  <div class="p-4">
+    <p class="text-[11px] text-slate-400 px-2 mt-4 mb-2 uppercase tracking-[0.22em] font-bold"> </p>
+  </div>
+  <div class="px-4 pb-4 space-y-6 overflow-y-auto custom-scroll flex-1">
+    <div id="nav-container"></div>
+  </div>
+</aside>
+<div class="fixed inset-0 bg-slate-950/40 z-10 hidden md:hidden" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+<div class="flex-1 flex flex-col h-full overflow-hidden relative">
+<header class="sticky top-0 z-50 glass-cmv">
+ <div class="w-full px-5 py-3.5 flex items-center justify-between gap-4">
+  <div class="flex items-center gap-3 min-w-0">
+   
+   <div class="leading-tight min-w-0">
+    <div class="text-base sm:text-lg font-extrabold tracking-tight uppercase whitespace-nowrap text-slate-900">REAL WORLD <span class="text-blue-600">CE</span></div>
+    <div class="text-[10px] font-semibold tracking-[0.22em] uppercase text-slate-500 mt-1">Featuring: <span class="font-extrabold text-slate-900">REAL </span><span class="font-extrabold text-blue-600">DATA</span></div>
+   </div>
+  </div>
+  <div class="flex items-center gap-4">
+   <div class="hidden lg:flex items-center gap-2 px-3 py-2 rounded-full bg-white/80 border border-slate-200 shadow-sm text-sm text-slate-500">
+    <span class="capitalize font-bold text-slate-900" id="breadcrumb-module">Module</span>
+    <span class="material-symbols-outlined text-sm text-blue-600">chevron_right</span>
+    <span id="breadcrumb-section" class="font-semibold truncate max-w-[220px]">Section</span>
+   </div>
+   <button class="p-2 hover:bg-slate-100 rounded-xl text-slate-600 md:hidden" onclick="toggleSidebar()"><span class="material-symbols-outlined">menu</span></button>
+  </div>
+ </div>
+</header>
+<main class="flex-1 overflow-y-auto p-4 md:p-8 bg-transparent scroll-smooth" id="main-content"></main>
+</div>
+<script>
+const appData={modules:{'pid':{title:'PID Track',color:'blue',sections:[{id:'diagnosis',title:'1. Diagnostic Delays',icon:'troubleshoot'},{id:'treatment',title:'2. Targeted Therapies',icon:'vaccines'},{id:'monitoring',title:'3. Care & Transition',icon:'handshake'},{id:'case-marcus',title:'Case 1: Adult Onset',icon:'person'},{id:'case-sarah',title:'Case 2: Rare Genetic',icon:'science'},{id:'case-david',title:'Case 3: Transition',icon:'escalator_warning'}]}}};
+let activeModuleId='pid'; let activeSectionId='diagnosis'; let quizStates={};
+window.downloadMedia=async function(url,filename){try{const response=await fetch(url); if(!response.ok) throw new Error('Network response was not ok'); const blob=await response.blob(); const blobUrl=window.URL.createObjectURL(blob); const a=document.createElement('a'); a.style.display='none'; a.href=blobUrl; a.download=filename; document.body.appendChild(a); a.click(); window.URL.revokeObjectURL(blobUrl); document.body.removeChild(a);}catch(error){console.warn('Direct download blocked by CORS. Opening in new tab instead.', error); window.open(url,'_blank');}};
+function getProgressPercent(){const sections=appData.modules[activeModuleId].sections; const idx=sections.findIndex(s=>s.id===activeSectionId); return Math.round(((idx+1)/sections.length)*100);}
+function heroBlock(title,subtitle,chips=[]){const chipsHtml=chips.map(chip=>`<div class="metric-pill rounded-xl px-4 py-3"><div class="text-[11px] uppercase tracking-[0.22em] text-blue-100/80 font-semibold">${chip.label}</div><div class="text-xl font-extrabold text-white mt-1">${chip.value}</div></div>`).join(''); return `<div class="hero-panel rounded-[28px] p-7 md:p-8 text-white shadow-xl mb-6"><div class="max-w-3xl"><div class="inline-flex items-center gap-2 section-badge rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.20em] mb-4">Clinical Education</div><h1 class="text-3xl md:text-4xl font-extrabold tracking-tight mb-3">${title}</h1><p class="text-blue-100 text-lg max-w-2xl leading-relaxed">${subtitle}</p></div>${chips.length?`<div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-7 max-w-3xl">${chipsHtml}</div>`:''}</div>`;}
+function sectionShell(inner){return `<div class="space-y-6 max-w-4xl mx-auto slide-up">${inner}</div>`;}
+function getSectionContent(moduleId, sectionId) {
+if (sectionId==='diagnosis') return sectionShell(`${heroBlock('Diagnostic Delays in Primary Immunodeficiency (PID)','Shift from passive recognition of recurrent infections to active screening for immune dysregulation, autoimmune overlap, and earlier referral.',[{label:'Adult delay',value:'23 years'},{label:'Autoimmune misdiagnosis',value:'32%'},{label:'Entities',value:'559+'}])}<div class="section-card rounded-3xl p-6 md:p-7"><h2 class="text-xl font-bold text-slate-900 mb-4">The Clinical Gap</h2><div class="text-slate-600 leading-relaxed space-y-4"><p>PID encompasses 559 distinct clinical entities. Despite affecting roughly 6 per 10,000 individuals, a profound diagnostic delay exists. The median time from symptom onset to formal diagnosis reaches an astonishing <strong class="text-slate-900">23 years</strong> in the adult population.</p><div class="rounded-2xl bg-amber-50 border border-amber-200 p-5"><p class="font-bold text-amber-900 mb-1">The Misdiagnosis Trap</p><p class="text-amber-800 text-sm">Approximately 32% of patients receive an autoimmune diagnosis, such as rheumatoid arthritis, an average of 12.7 years before their underlying PID is identified.</p></div><div class="grid md:grid-cols-2 gap-4"><div class="rounded-2xl bg-slate-50 border border-slate-200 p-5"><div class="text-xs font-bold uppercase tracking-[0.18em] text-slate-500 mb-2">Legacy limitation</div><p class="text-sm">The older “10 Warning Signs” framework can miss patients who present with inflammation, autoimmunity, or noninfectious manifestations.</p></div><div class="rounded-2xl bg-slate-50 border border-slate-200 p-5"><div class="text-xs font-bold uppercase tracking-[0.18em] text-slate-500 mb-2">Best-practice screen</div><p class="text-sm">Use <strong>ELVIS</strong> and <strong>GARFIELD</strong> criteria to identify patients whose clinical picture extends beyond recurrent infection alone.</p></div></div></div></div>${renderQuizComponent('pid-q1','What is the recommended first step in the tiered diagnostic protocol once a patient meets the clinical criteria for PID?',['Whole Exome Sequencing (WES)','Diagnostic lymph node biopsy','CBC bloodwork with differentials and immunoglobulin screening','Initiation of prophylactic antibiotics to test response'],2,'Correct. Basic screening begins with CBC bloodwork with differentials to identify lymphopenia or neutropenia, followed by serum immunoglobulin screening.')}<div class="flex justify-end pt-2"><button onclick="navigateTo('pid', 'treatment')" class="bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700 transition flex items-center gap-2 shadow-lg shadow-blue-600/20">Next: Treatments <span class="material-symbols-outlined">arrow_forward</span></button></div>`);
+if (sectionId==='treatment') return sectionShell(`${heroBlock('The Evolving Therapeutic Landscape','Treatment is shifting from broad supportive therapy toward molecularly targeted agents and genomic interventions for severe monogenic defects.',[{label:'APDS target',value:'Leniolisib'},{label:'WAS therapy',value:'Gene Tx'},{label:'Care model',value:'Precision'}])}<div class="grid gap-4"><div class="section-card rounded-3xl p-6 border-l-4 border-blue-500"><h3 class="font-bold text-lg text-slate-800 mb-2">Leniolisib (Approved 2023)</h3><p class="text-sm text-slate-600">An oral targeted therapy for Activated PI3K-delta Syndrome (APDS). It reduces lymphadenopathy and restores the B-cell compartment, with a 37.3% increase in naive B-cells relative to placebo.</p></div><div class="section-card rounded-3xl p-6 border-l-4 border-purple-500"><h3 class="font-bold text-lg text-slate-800 mb-2">Etuvetidigene autoteucel (Approved 2025)</h3><p class="text-sm text-slate-600">A landmark lentiviral gene therapy for Wiskott-Aldrich Syndrome (WAS) that delivers a functional copy of the WAS gene and achieved a 96% overall survival rate in trials.</p></div><div class="section-card rounded-3xl p-6 border-l-4 border-indigo-500"><h3 class="font-bold text-lg text-slate-800 mb-2">Advanced IgRT Formulations</h3><p class="text-sm text-slate-600">Newer 10% IVIg and SCIg formulations with low-IgA reduce anaphylactic risk for susceptible patients, while expanded 20% SCIg indications allow for more convenient biweekly dosing.</p></div></div>${renderQuizComponent('pid-q2','Which biologic was recently approved for the treatment of CD55-deficient protein-losing enteropathy (CHAPLE disease) to prevent complement hyperactivation?',['Leniolisib','Pozelimab-bbfg','Etuvetidigene autoteucel','Garadacimab-gxii'],1,'Correct. Pozelimab-bbfg is a fully human monoclonal antibody targeting complement factor C5. One hundred percent of evaluated patients achieved normalization of serum albumin by week 12.')}<div class="flex justify-between pt-2"><button onclick="navigateTo('pid', 'diagnosis')" class="text-slate-500 hover:text-blue-600 font-medium flex items-center gap-2"><span class="material-symbols-outlined">arrow_back</span> Back</button><button onclick="navigateTo('pid', 'monitoring')" class="bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700 transition flex items-center gap-2 shadow-lg shadow-blue-600/20">Next: Care & Transition <span class="material-symbols-outlined">arrow_forward</span></button></div>`);
+if (sectionId==='monitoring') return sectionShell(`${heroBlock('Shared Decision-Making & Care Transition','High comorbidity burden and fragmented care make shared decisions, transition planning, and multidisciplinary coordination essential.',[{label:'Allergies',value:'66%'},{label:'Arthritis',value:'57%'},{label:'Asthma',value:'44%'}])}<div class="section-card rounded-3xl p-6 md:p-7"><h3 class="font-semibold text-lg mb-4 text-slate-800">Bridging the Multidisciplinary Gap</h3><p class="text-slate-600 mb-5">PID patients experience significant comorbidity burdens and often need coordinated long-term support. Before diagnosis, 42% report permanent physical impairment.</p><div class="bg-blue-50 border border-blue-200 rounded-2xl p-5"><h4 class="font-bold text-blue-900 mb-4">Best Practice Frameworks</h4><div class="grid gap-3"><div class="rounded-xl bg-white/80 border border-blue-100 px-4 py-3 text-sm"><strong class="text-blue-900">Administration preference:</strong> Offering choice in IgRT route, IV or SC, improves health-related quality of life.</div><div class="rounded-xl bg-white/80 border border-blue-100 px-4 py-3 text-sm"><strong class="text-blue-900">Care clusters:</strong> Core teams including immunology, pulmonology, and radiology are needed to screen for GLILD.</div><div class="rounded-xl bg-white/80 border border-blue-100 px-4 py-3 text-sm"><strong class="text-blue-900">The transition cliff:</strong> Forty percent of young adults report high psychiatric morbidity during the shift to adult care.</div></div></div></div>${renderQuizComponent('pid-q3','According to the 2025 Delphi Consensus, at what age should clinicians begin formal discussions and readiness assessments to transition a pediatric PID patient to adult care?',['Age 12','Age 16','Age 18','Age 21'],0,'Correct. The 2025 Delphi Consensus recommends starting the transition discussion at age 12, using a standardized readiness assessment, and conducting joint hand-off visits.')}<div class="flex justify-between pt-2"><button onclick="navigateTo('pid', 'treatment')" class="text-slate-500 hover:text-blue-600 font-medium flex items-center gap-2"><span class="material-symbols-outlined">arrow_back</span> Back</button><button onclick="navigateTo('pid', 'case-marcus')" class="bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700 transition flex items-center gap-2 shadow-lg shadow-blue-600/20">Next: Cases <span class="material-symbols-outlined">arrow_forward</span></button></div>`);
+if (sectionId==='case-marcus') return sectionShell(`<div class="flex items-center justify-between gap-4 flex-wrap"><h2 class="text-2xl font-bold text-slate-900">Case Study 1: Adult Onset</h2><span class="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-xs font-bold uppercase tracking-wide">Interactive</span></div><div class="section-card rounded-3xl p-6 md:p-7"><div class="flex gap-4 mb-6"><div class="w-12 h-12 bg-indigo-100 rounded-full flex-shrink-0 flex items-center justify-center text-xl text-indigo-600 font-bold">M</div><div><h3 class="font-bold text-lg text-slate-800">The Autoimmune Misdirection</h3><p class="text-slate-600">Marcus is a 34-year-old male presenting with chronic fatigue, recurrent respiratory infections, and a recent diagnosis of inflammatory bowel disease.</p></div></div>${renderClinicalVideoBlock('marcus-pid','Marcus','https://images.unsplash.com/photo-1584515933487-779824d29309?auto=format&fit=crop&q=80&w=800','case1.mp4','Clinical Observation: Marcus was treated solely for IBD with immunosuppressants for 6 years, worsening his recurrent pneumonias before an immunologist was consulted.', { posterMaxClass: 'max-h-[320px] mx-auto rounded-2xl' })}<div class="space-y-3 bg-slate-50 p-5 rounded-2xl border border-slate-100 text-sm mt-6"><p><strong class="text-slate-900">Diagnosis:</strong> An application of the GARFIELD criteria triggered a basic immunoglobulin screening, revealing severe hypogammaglobulinemia. WES later confirmed Common Variable Immunodeficiency (CVID).</p></div></div>${renderQuizComponent('quiz-marcus-pid','Based on survey data, how common is Marcus\'s experience of receiving an autoimmune misdiagnosis before a formal PID diagnosis?',['Less than 5% of patients','Approximately 15% of patients','Approximately 32% of patients','Over 75% of patients'],2,'Correct. Approximately 32% of patients receive an autoimmune diagnosis, like IBD or RA, an average of 12.7 years before their underlying PID is identified.')}<div class="flex justify-between pt-2"><button onclick="navigateTo('pid', 'monitoring')" class="text-slate-500 hover:text-blue-600 font-medium flex items-center gap-2"><span class="material-symbols-outlined">arrow_back</span> Back</button><button onclick="navigateTo('pid', 'case-sarah')" class="bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700 transition flex items-center gap-2 shadow-lg shadow-blue-600/20">Next Case <span class="material-symbols-outlined">arrow_forward</span></button></div>`);
+if (sectionId==='case-sarah') return sectionShell(`<div class="flex items-center justify-between gap-4 flex-wrap"><h2 class="text-2xl font-bold text-slate-900">Case Study 2: Rare Genetic</h2><span class="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-xs font-bold uppercase tracking-wide">Interactive</span></div><div class="section-card rounded-3xl p-6 md:p-7"><div class="flex gap-4 mb-6"><div class="w-12 h-12 bg-pink-100 rounded-full flex-shrink-0 flex items-center justify-center text-xl text-pink-600 font-bold">S</div><div><h3 class="font-bold text-lg text-slate-800">Targeted Intervention</h3><p class="text-slate-600">Sarah is a 14-year-old female with severe recurrent infections, significant lymphoproliferation, and exhausted naive B-cells.</p></div></div>${renderClinicalVideoBlock('sarah-pid','Sarah','https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&q=80&w=800','case2.mp4','Clinical Observation: Genomic sequencing identified a gain-of-function mutation in the PIK3CD gene, leading to hyperactivation of the PI3Kδ pathway.', { posterMaxClass: 'max-h-[320px] mx-auto rounded-2xl' })}</div>${renderQuizComponent('quiz-sarah-pid','Sarah has Activated PI3K-delta Syndrome (APDS). Which FDA-approved therapy directly targets this specific molecular lesion?',['Garadacimab-gxii','Leniolisib','High-dose intravenous corticosteroids','Pozelimab-bbfg'],1,'Correct. Leniolisib was approved specifically for APDS to address hyperactivation of the PI3Kδ pathway, reducing lymphadenopathy and restoring the B-cell compartment.')}<div class="flex justify-between pt-2"><button onclick="navigateTo('pid', 'case-marcus')" class="text-slate-500 hover:text-blue-600 font-medium flex items-center gap-2"><span class="material-symbols-outlined">arrow_back</span> Back</button><button onclick="navigateTo('pid', 'case-david')" class="bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700 transition flex items-center gap-2 shadow-lg shadow-blue-600/20">Next Case <span class="material-symbols-outlined">arrow_forward</span></button></div>`);
+if (sectionId==='case-david') return sectionShell(`<div class="flex items-center justify-between gap-4 flex-wrap"><h2 class="text-2xl font-bold text-slate-900">Case Study 3: Care Transition</h2><span class="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-xs font-bold uppercase tracking-wide">Interactive</span></div><div class="section-card rounded-3xl p-6 md:p-7"><div class="flex gap-4 mb-6"><div class="w-12 h-12 bg-slate-200 rounded-full flex-shrink-0 flex items-center justify-center text-xl text-slate-600 font-bold">D</div><div><h3 class="font-bold text-lg text-slate-800">The Transition Cliff</h3><p class="text-slate-600">David is an 18-year-old male with X-linked agammaglobulinemia who recently moved away for college.</p></div></div>${renderClinicalVideoBlock('david-pid','David','https://images.unsplash.com/photo-1517673132405-a56a62b18caf?auto=format&fit=crop&q=80&w=800','case3.mp4','Clinical Observation: David was never formally transitioned to an adult care model. He felt overwhelmed by insurance complexities and missed his last two SC IgRT infusions, resulting in a severe sinus infection requiring hospitalization.', { posterMaxClass: 'max-h-[320px] mx-auto rounded-2xl' })}</div>${renderQuizComponent('quiz-david-pid','In addition to poor transition protocols, what comorbid factor affects roughly 40% of young adults with PID, further complicating their adherence during care transitions?',['Early-onset dementia','High psychiatric morbidity (anxiety/depression)','Severe early-onset osteoarthritis','Chronic liver failure'],1,'Correct. Approximately 40% of young adults with PID report significant anxiety or depression, which is often exacerbated by navigating a new healthcare landscape without a dedicated transition coordinator.')}<div class="flex justify-between pt-2"><button onclick="navigateTo('pid', 'case-sarah')" class="text-slate-500 hover:text-blue-600 font-medium flex items-center gap-2"><span class="material-symbols-outlined">arrow_back</span> Back</button><button class="bg-green-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-green-700 transition flex items-center gap-2 shadow-lg shadow-green-600/20">Complete Module <span class="material-symbols-outlined">check_circle</span></button></div>`);
+return '';}
+function renderQuizComponent(id, question, options, correctIndex, explanation) {const state=quizStates[id] || { submitted:false, selected:null }; const isCorrect=state.selected===correctIndex; const optionsHtml=options.map((opt,idx)=>{let style=`bg-white border-slate-200 hover:border-blue-300 hover:shadow-sm`; let icon='<div class="w-5 h-5 rounded-full border border-slate-300"></div>'; if(!state.submitted && state.selected===idx){style=`bg-blue-50 border-blue-500 ring-1 ring-blue-500`; icon=`<div class="w-5 h-5 rounded-full border border-blue-500 bg-white flex items-center justify-center"><div class="w-2.5 h-2.5 rounded-full bg-blue-500"></div></div>`;} else if(state.submitted){ if(idx===correctIndex){style="bg-green-50 border-green-200 ring-1 ring-green-500"; icon='<div class="w-5 h-5 rounded-full bg-green-500 border-green-500 flex items-center justify-center"><span class="material-symbols-outlined text-white text-sm">check</span></div>'; } else if(idx===state.selected){style="bg-red-50 border-red-200 ring-1 ring-red-500"; icon='<div class="w-5 h-5 rounded-full border-red-500 flex items-center justify-center"><span class="material-symbols-outlined text-red-500 text-sm">close</span></div>'; } else {style="bg-slate-50 border-slate-200 opacity-55";}} const clickAttr=!state.submitted?`onclick="selectQuizOption('${id}', ${idx})"`:''; return `<div ${clickAttr} class="p-4 rounded-2xl border cursor-pointer transition-all duration-200 flex items-center gap-3 mb-3 ${style}">${icon}<span class="text-sm ${state.submitted && idx===correctIndex ? 'font-bold text-green-900' : 'text-slate-700'}">${opt}</span></div>`;}).join(''); const feedback=state.submitted?`<div class="mt-6 p-4 rounded-2xl ${isCorrect ? 'bg-green-100 text-green-900' : 'bg-red-50 text-red-900'} fade-in"><div class="flex items-center gap-2 font-bold mb-2"><span class="material-symbols-outlined">${isCorrect ? 'check_circle' : 'cancel'}</span>${isCorrect ? 'Correct' : 'Incorrect'}</div><p class="text-sm leading-relaxed">${explanation}</p></div>`:`<button onclick="submitQuiz('${id}')" class="mt-4 w-full py-3 rounded-xl font-bold transition-all text-white ${state.selected !== null ? 'bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}" ${state.selected===null ? 'disabled' : ''}>Submit Answer</button>`; return `<div class="section-card rounded-3xl p-6 border my-6" id="${id}"><h3 class="font-semibold text-slate-900 mb-4 flex items-start gap-2"><span class="bg-blue-100 text-blue-700 text-[11px] px-2.5 py-1 rounded-full uppercase tracking-wide mt-0.5 font-bold whitespace-nowrap">Knowledge Check</span><span>${question}</span></h3><div>${optionsHtml}</div>${feedback}</div>`;}
+function renderClinicalVideoBlock(key,name,posterSrc,videoSrc,observationText,opts={}){
+    const posterMaxClass=opts.posterMaxClass?opts.posterMaxClass:'';
+    const safeVideoSrc=(videoSrc||'').replace(/^\.\//,'');
+    return `
+<div class="my-6 rounded-[28px] overflow-hidden shadow-xl border border-slate-200 relative group/media bg-white" data-clinical-video-block="1" data-cv-key="${key}">
+  <div class="absolute top-3 right-3 z-20 flex gap-2 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300">
+      <div class="group/dl relative">
+          <button type="button" onclick="event.stopPropagation(); downloadMedia('${posterSrc}', '${name}_poster.jpg')" class="bg-slate-900/60 hover:bg-blue-600 text-white p-2.5 rounded-full backdrop-blur transition-all flex items-center justify-center shadow-md border border-white/20">
+              <span class="material-symbols-outlined text-sm">image</span>
+          </button>
+          <div class="tooltip-dl absolute -bottom-10 right-0 whitespace-nowrap bg-slate-900 text-white text-xs px-2 py-1 rounded opacity-0 translate-y-1 transition-all pointer-events-none">Download Image</div>
+      </div>
+      <div class="group/dl relative">
+          <button type="button" onclick="event.stopPropagation(); downloadMedia('${safeVideoSrc}', '${name}_clinical_video.mp4')" class="bg-slate-900/60 hover:bg-blue-600 text-white p-2.5 rounded-full backdrop-blur transition-all flex items-center justify-center shadow-md border border-white/20">
+              <span class="material-symbols-outlined text-sm">movie</span>
+          </button>
+          <div class="tooltip-dl absolute -bottom-10 right-0 whitespace-nowrap bg-slate-900 text-white text-xs px-2 py-1 rounded opacity-0 translate-y-1 transition-all pointer-events-none">Download Video</div>
+      </div>
+  </div>
+
+  <button type="button" class="w-full relative block bg-black group fade-swap swap-visible" data-cv-poster aria-label="Play ${name} clinical observation">
+    <img src="${posterSrc}" alt="${name}" class="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition ${posterMaxClass}" />
+    <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+      <div class="h-16 w-16 rounded-full bg-white/85 backdrop-blur border border-white/60 shadow-lg flex items-center justify-center group-hover:scale-105 transition sim-pulse">
+        <svg viewBox="0 0 24 24" class="w-7 h-7 text-slate-900 translate-x-[1px]" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>
+      </div>
+    </div>
+    <div class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent text-left pointer-events-none">
+      <div class="text-white font-semibold text-lg">Clinical Observation</div>
+      <div class="text-white/80 text-sm">Click to play video case</div>
+    </div>
+  </button>
+
+  <div class="hidden relative fade-swap swap-hidden bg-slate-950" data-cv-wrap>
+    <video class="w-full h-auto max-h-[620px] bg-black" data-cv-video controls playsinline preload="metadata" poster="${posterSrc}">
+      <source src="${safeVideoSrc}" type="video/mp4">
+      Your browser does not support the video tag.
+    </video>
+    <div class="bg-slate-900 text-white p-6 text-center">
+      <h3 class="font-semibold text-xl mb-3">Clinical Observation</h3>
+      <p class="text-slate-300 max-w-2xl mx-auto leading-relaxed text-lg">${observationText}</p>
+    </div>
+  </div>
+</div>`;
+}
+function initClinicalVideos(){
+    const blocks=document.querySelectorAll('[data-clinical-video-block="1"]');
+    if(!blocks.length) return;
+
+    blocks.forEach(block=>{
+        const posterBtn=block.querySelector('[data-cv-poster]');
+        const wrap=block.querySelector('[data-cv-wrap]');
+        const replay=block.querySelector('[data-cv-replay]');
+        const progress=block.querySelector('[data-cv-progress]');
+        const status=block.querySelector('[data-cv-status]');
+        const video=block.querySelector('[data-cv-video]');
+        if(!posterBtn || !wrap) return;
+
+        let timer=null;
+        let pct=0;
+        const phases=[
+            {limit:18, label:'Opening case'},
+            {limit:42, label:'Reviewing presentation'},
+            {limit:68, label:'Assessing findings'},
+            {limit:100, label:'Observation complete'}
+        ];
+
+        const stopPlayback=()=>{
+            if(timer){ clearInterval(timer); timer=null; }
+        };
+
+        const runPlayback=()=>{
+            stopPlayback();
+            pct=0;
+            if(progress) progress.style.width='0%';
+            if(status) status.textContent='Starting...';
+
+            timer=setInterval(()=>{
+                pct=Math.min(100, pct + 4);
+                if(progress) progress.style.width = pct + '%';
+
+                const phase = phases.find(p=>pct<=p.limit) || phases[phases.length-1];
+                if(status) status.textContent = phase.label;
+
+                if(pct >= 100){
+                    stopPlayback();
+                }
+            }, 280);
+        };
+
+        const showVideo=()=>{
+            posterBtn.classList.add('swap-hidden');
+            posterBtn.classList.remove('swap-visible');
+            posterBtn.disabled=true;
+            wrap.classList.remove('hidden');
+            requestAnimationFrame(()=>{
+                wrap.classList.remove('swap-hidden');
+                wrap.classList.add('swap-visible', 'sim-fade');
+            });
+            wrap.scrollIntoView({behavior:'smooth', block:'center'});
+            runPlayback();
+            if(video){
+                video.currentTime=0;
+                const playPromise=video.play();
+                if(playPromise && typeof playPromise.catch==='function'){ playPromise.catch(()=>{}); }
+            }
+        };
+
+        posterBtn.addEventListener('click', showVideo);
+
+        if(replay){
+            replay.addEventListener('click', (e)=>{
+                e.stopPropagation();
+                runPlayback();
+                if(video){
+                    video.currentTime=0;
+                    const playPromise=video.play();
+                    if(playPromise && typeof playPromise.catch==='function'){ playPromise.catch(()=>{}); }
+                }
+            });
+        }
+    });
+}
+function renderSidebar(){const container=document.getElementById('nav-container'); let html=''; for(const modKey in appData.modules){const module=appData.modules[modKey]; html += `<div class="mb-6"><h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 px-3">${module.title}</h3><div class="space-y-1.5">`; module.sections.forEach(section=>{const isActive=activeModuleId===modKey && activeSectionId===section.id; const btnClass=isActive ? `nav-active` : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'; html += `<button onclick="navigateTo('${modKey}', '${section.id}')" class="w-full text-left px-3.5 py-3 rounded-2xl text-sm flex items-center gap-3 transition-all ${btnClass}"><span class="material-symbols-outlined text-[18px] opacity-70">${section.icon}</span><span>${section.title}</span></button>`;}); html += `</div></div>`;} container.innerHTML=html; const progress=getProgressPercent(); document.getElementById('sidebar-progress-bar').style.width=`${progress}%`; document.getElementById('sidebar-progress-label').textContent=`${progress}%`;}
+function renderMainContent(){const module=appData.modules[activeModuleId]; const section=module.sections.find(s=>s.id===activeSectionId); document.getElementById('breadcrumb-module').textContent=module.title; document.getElementById('breadcrumb-section').textContent=section.title; const contentContainer=document.getElementById('main-content'); contentContainer.innerHTML=getSectionContent(activeModuleId, activeSectionId); contentContainer.scrollTop=0; renderSidebar(); initClinicalVideos(); if(window.innerWidth<768){document.getElementById('sidebar').classList.add('-translate-x-full'); document.getElementById('sidebar-overlay').classList.add('hidden');}}
+function navigateTo(modId, secId){activeModuleId=modId; activeSectionId=secId; renderMainContent();}
+function toggleSidebar(){const sidebar=document.getElementById('sidebar'); const overlay=document.getElementById('sidebar-overlay'); if(sidebar.classList.contains('-translate-x-full')){sidebar.classList.remove('-translate-x-full'); overlay.classList.remove('hidden');} else {sidebar.classList.add('-translate-x-full'); overlay.classList.add('hidden');}}
+window.selectQuizOption=function(qid,idx){if(!quizStates[qid]) quizStates[qid]={submitted:false}; quizStates[qid].selected=idx; renderMainContent();};
+window.submitQuiz=function(qid){if(!quizStates[qid]) return; quizStates[qid].submitted=true; renderMainContent();};
+document.addEventListener('DOMContentLoaded', ()=>{renderMainContent();});
+</script>
+</body>
+</html>
